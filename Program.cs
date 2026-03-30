@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,6 +38,13 @@ namespace FluidScroll
 
         private const string StartupRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
         private const string AppName = "FluidScroll";
+
+        // High resolution timer
+        [DllImport("winmm.dll", EntryPoint = "timeBeginPeriod")]
+        public static extern uint TimeBeginPeriod(uint uMilliseconds);
+
+        [DllImport("winmm.dll", EntryPoint = "timeEndPeriod")]
+        public static extern uint TimeEndPeriod(uint uMilliseconds);
 
         [STAThread]
         static void Main(string[] args)
