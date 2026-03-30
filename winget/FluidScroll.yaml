@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
+PackageIdentifier: alf16d.FluidScroll
+PackageVersion: 1.0.0
+PackageName: FluidScroll
+Publisher: alf16d
+License: MIT
+ShortDescription: Smooth scrolling utility with inertia and fluid momentum.
+PackageUrl: https://github.com/alf16d/FluidScroll
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    InstallerUrl: https://github.com/alf16d/FluidScroll/releases/download/v1.0.0/FluidScroll.exe
+    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000 # Update this
+    Commands:
+      - FluidScroll
+ManifestType: singleton
+ManifestVersion: 1.6.0
