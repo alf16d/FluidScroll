@@ -37,4 +37,6 @@ jobs:
       shell: pwsh
       run: |
         Write-Host "Creating release for tag: $env:TAG_NAME"
-        gh release create $env:TAG_NAME ./publish/FluidScroll.exe --title "FluidScroll $env:TAG_NAME" --generate-notes --overwrite
+        # Delete the release if it already exists to allow re-runs
+        gh release delete $env:TAG_NAME --yes --cleanup-tag 2>$null || $true
+        gh release create $env:TAG_NAME ./publish/FluidScroll.exe --title "FluidScroll $env:TAG_NAME" --generate-notes
