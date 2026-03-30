@@ -9,8 +9,8 @@ PackageUrl: https://github.com/alf16d/FluidScroll
 Installers:
   - Architecture: x64
     InstallerType: portable
-    InstallerUrl: https://github.com/alf16d/FluidScroll/releases/download/v1.0.0/FluidScroll.exe
-    InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000 # Update this
+    InstallerUrl: https://github.com/alf16d/FluidScroll/releases/download/v1.0.1/FluidScroll.exe
+    InstallerSha256: sha256:1f57b1970a286ff0763ecd63bf1aa5a226492b4dce4338749938e3b3090048c5 # Update this
     Commands:
       - FluidScroll
     Protocols: []
