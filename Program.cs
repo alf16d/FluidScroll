@@ -61,6 +61,17 @@ namespace FluidScroll
                 ContextMenuStrip = new ContextMenuStrip()
             };
 
+            // Auto-enable startup on first run
+            if (!IsStartupEnabled())
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(StartupRegistryKey, true);
+                string? exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                if (key != null && exePath != null)
+                {
+                    key.SetValue(AppName, $"\"{exePath}\"");
+                }
+            }
+
             var toggleMenuItem = new ToolStripMenuItem("Disable FluidScroll", null, ToggleEnabled);
             _trayIcon.ContextMenuStrip.Items.Add(toggleMenuItem);
 

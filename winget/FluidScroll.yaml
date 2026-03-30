@@ -13,5 +13,11 @@ Installers:
     InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000 # Update this
     Commands:
       - FluidScroll
+    Protocols: []
+    FileExtensions: []
+    Shortcuts:
+      - Name: FluidScroll
+        Executable: FluidScroll.exe
+        Icon: imgs/icon_256.ico
 ManifestType: singleton
 ManifestVersion: 1.6.0
