@@ -26,17 +26,69 @@ jobs:
         dotnet-version: '10.0.x'
         include-prerelease: true
 
-    - name: Publish
-      run: |
-        dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./publish
-
-    - name: Create Release (Custom Run)
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAG_NAME: ${{ inputs.version || github.ref_name }}
+    - name: Resolve version
+      id: version
       shell: pwsh
       run: |
-        Write-Host "Creating release for tag: $env:TAG_NAME"
-        # Delete the release if it already exists to allow re-runs
-        gh release delete $env:TAG_NAME --yes --cleanup-tag 2>$null || $true
-        gh release create $env:TAG_NAME ./publish/FluidScroll.exe --title "FluidScroll $env:TAG_NAME" --generate-notes
+        $tagName = "${{ inputs.version || github.ref_name }}"
+        if ([string]::IsNullOrWhiteSpace($tagName)) {
+          throw "Release version is empty."
+        }
+
+        if (-not $tagName.StartsWith("v")) {
+          $tagName = "v$tagName"
+        }
+
+        $packageVersion = $tagName -replace '^v', ''
+        if ($packageVersion -notmatch '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$') {
+          throw "Version '$packageVersion' is not a valid package version."
+        }
+
+        "tag_name=$tagName" >> $env:GITHUB_OUTPUT
+        "package_version=$packageVersion" >> $env:GITHUB_OUTPUT
+
+    - name: Publish
+      run: |
+        dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:Version=${{ steps.version.outputs.package_version }} -o ./publish
+
+    - name: Update WinGet manifest
+      shell: pwsh
+      run: |
+        $exePath = "./publish/FluidScroll.exe"
+        if (-not (Test-Path $exePath)) {
+          throw "Published executable was not found at $exePath."
+        }
+
+        $hash = (Get-FileHash $exePath -Algorithm SHA256).Hash
+        $tagName = "${{ steps.version.outputs.tag_name }}"
+        $packageVersion = "${{ steps.version.outputs.package_version }}"
+        $installerUrl = "https://github.com/${{ github.repository }}/releases/download/$tagName/FluidScroll.exe"
+        $manifestPath = "./winget/FluidScroll.yaml"
+
+        $manifest = Get-Content -Raw $manifestPath
+        $manifest = $manifest -replace '(?m)^PackageVersion:.*$', "PackageVersion: $packageVersion"
+        $manifest = $manifest -replace '(?m)^(\s*)InstallerUrl:.*$', "    InstallerUrl: $installerUrl"
+        $manifest = $manifest -replace '(?m)^(\s*)InstallerSha256:.*$', "    InstallerSha256: $hash"
+        Set-Content -Path $manifestPath -Value $manifest -NoNewline
+
+        "$hash  FluidScroll.exe" | Set-Content -Path "./publish/FluidScroll.exe.sha256"
+
+    - name: Create or update release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG_NAME: ${{ steps.version.outputs.tag_name }}
+      shell: pwsh
+      run: |
+        $assets = @(
+          "./publish/FluidScroll.exe",
+          "./publish/FluidScroll.exe.sha256",
+          "./winget/FluidScroll.yaml"
+        )
+
+        gh release view $env:TAG_NAME 1>$null 2>$null
+        if ($LASTEXITCODE -eq 0) {
+          gh release upload $env:TAG_NAME @assets --clobber
+        }
+        else {
+          gh release create $env:TAG_NAME @assets --title "FluidScroll $env:TAG_NAME" --generate-notes
+        }
