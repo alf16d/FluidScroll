@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g., v1.0.1)'
+        description: 'Version tag (e.g., v1.0.2)'
         required: true
-        default: 'v1.0.0'
+        default: 'v1.0.2'
 
 jobs:
   release:
@@ -40,38 +40,65 @@ jobs:
         }
 
         $packageVersion = $tagName -replace '^v', ''
-        if ($packageVersion -notmatch '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$') {
-          throw "Version '$packageVersion' is not a valid package version."
+        if ($packageVersion -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') {
+          throw "Version '$packageVersion' must use a numeric version like 1.0.2 or 1.0.2.0."
+        }
+
+        $fileVersion = $packageVersion
+        if (($packageVersion.Split('.')).Count -eq 3) {
+          $fileVersion = "$packageVersion.0"
         }
 
         "tag_name=$tagName" >> $env:GITHUB_OUTPUT
         "package_version=$packageVersion" >> $env:GITHUB_OUTPUT
+        "file_version=$fileVersion" >> $env:GITHUB_OUTPUT
 
     - name: Publish
       run: |
         dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:Version=${{ steps.version.outputs.package_version }} -o ./publish
 
+    - name: Setup Inno Setup
+      shell: pwsh
+      run: |
+        choco install innosetup --no-progress -y
+
+    - name: Build installer
+      shell: pwsh
+      run: |
+        $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        if (-not (Test-Path $iscc)) {
+          $iscc = "iscc"
+        }
+
+        New-Item -ItemType Directory -Force -Path ./dist | Out-Null
+        & $iscc ./installer/FluidScroll.iss /DAppVersion=${{ steps.version.outputs.package_version }} /DAppFileVersion=${{ steps.version.outputs.file_version }} /DSourceDir="..\publish"
+
+        if (-not (Test-Path "./dist/FluidScrollSetup.exe")) {
+          throw "Installer was not produced at ./dist/FluidScrollSetup.exe."
+        }
+
     - name: Update WinGet manifest
       shell: pwsh
       run: |
-        $exePath = "./publish/FluidScroll.exe"
-        if (-not (Test-Path $exePath)) {
-          throw "Published executable was not found at $exePath."
+        $installerPath = "./dist/FluidScrollSetup.exe"
+        if (-not (Test-Path $installerPath)) {
+          throw "Installer was not found at $installerPath."
         }
 
-        $hash = (Get-FileHash $exePath -Algorithm SHA256).Hash
+        $hash = (Get-FileHash $installerPath -Algorithm SHA256).Hash
         $tagName = "${{ steps.version.outputs.tag_name }}"
         $packageVersion = "${{ steps.version.outputs.package_version }}"
-        $installerUrl = "https://github.com/${{ github.repository }}/releases/download/$tagName/FluidScroll.exe"
+        $installerUrl = "https://github.com/${{ github.repository }}/releases/download/$tagName/FluidScrollSetup.exe"
         $manifestPath = "./winget/FluidScroll.yaml"
 
         $manifest = Get-Content -Raw $manifestPath
         $manifest = $manifest -replace '(?m)^PackageVersion:.*$', "PackageVersion: $packageVersion"
+        $manifest = $manifest -replace '(?m)^(\s*)InstallerType:.*$', "    InstallerType: inno"
         $manifest = $manifest -replace '(?m)^(\s*)InstallerUrl:.*$', "    InstallerUrl: $installerUrl"
         $manifest = $manifest -replace '(?m)^(\s*)InstallerSha256:.*$', "    InstallerSha256: $hash"
         Set-Content -Path $manifestPath -Value $manifest -NoNewline
 
-        "$hash  FluidScroll.exe" | Set-Content -Path "./publish/FluidScroll.exe.sha256"
+        "$hash  FluidScrollSetup.exe" | Set-Content -Path "./dist/FluidScrollSetup.exe.sha256"
 
     - name: Create or update release
       env:
@@ -81,7 +108,8 @@ jobs:
       run: |
         $assets = @(
           "./publish/FluidScroll.exe",
-          "./publish/FluidScroll.exe.sha256",
+          "./dist/FluidScrollSetup.exe",
+          "./dist/FluidScrollSetup.exe.sha256",
           "./winget/FluidScroll.yaml"
         )
 

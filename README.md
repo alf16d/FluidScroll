@@ -13,4 +13,18 @@ FluidScroll is a background service for Windows that provides smooth, inertial s
 
 ## Usage
 
-Run `FluidScroll.exe`. It will run in the background. To stop it, use Task Manager to terminate the process.
+Install `FluidScrollSetup.exe` from the latest GitHub Release. FluidScroll runs in the background and appears as a tray icon in the notification area. Right-click the tray icon to open settings, toggle auto-start, or exit.
+
+## WinGet
+
+After a release is published with the installer asset, FluidScroll can be installed with:
+
+```powershell
+winget install --id alf16d.FluidScroll -e
+```
+
+Uninstall with:
+
+```powershell
+winget uninstall --id alf16d.FluidScroll -e
+```
